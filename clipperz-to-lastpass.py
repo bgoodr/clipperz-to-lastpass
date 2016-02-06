@@ -33,6 +33,24 @@ def setupLogging(logfile):
 def main():
     # Parse command-line options:
     parser = argparse.ArgumentParser(description='Converts Clipperz JSON databases to LastPass CSV files.')
+
+
+    # This:
+    #
+    #   parser.add_argument("-injson", dest="injsonfile", required=True, type=argparse.FileType('r'), help="Input Clipperz JSON file.")
+    #
+    # Gives this output:
+    #
+    #   Traceback (most recent call last):
+    #     File "./clipperz-to-lastpass.py", line 55, in <module>
+    #       main()
+    #     File "./clipperz-to-lastpass.py", line 49, in main
+    #       injsonfile = os.path.expanduser(args.injsonfile)
+    #     File "/usr/lib/python2.7/posixpath.py", line 254, in expanduser
+    #       if not path.startswith('~'):
+    #   AttributeError: 'file' object has no attribute 'startswith'
+    #
+    # Puzzling:
     parser.add_argument("-injson", dest="injsonfile", required=True, help="Input Clipperz JSON file.")
     parser.add_argument("-outcsv", dest="outcsv", required=True, help="Output LastPass CSV file.")
     args = parser.parse_args(sys.argv[1:])
@@ -43,7 +61,6 @@ def main():
     setupLogging(logfile)
     
     logging.info("Start: " + os.path.basename(sys.argv[0]))
-    logging.info("Using Python version:" + re.sub(r'\n', ' ', sys.version))
     
     # Process arguments:
     injsonfile = os.path.expanduser(args.injsonfile)
