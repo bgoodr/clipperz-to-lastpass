@@ -9,7 +9,7 @@ import re
 import logging
 import json
 
-def setupLogging(logfile):
+def setupLogging(logfile, level):
     # --------------------------------------------------------------------------------
     # Set up logging:
     # --------------------------------------------------------------------------------
@@ -29,12 +29,21 @@ def setupLogging(logfile):
     logging.basicConfig(filename=logfile,
                         filemode='w',
                         format=format,
-                        level=logging.DEBUG)
+                        level=level)
+
+    # level=logging.DEBUG
+
+    # Logger.setLevel() specifies the lowest-severity log message a
+    # logger will handle, where debug is the lowest built-in severity
+    # level and critical is the highest built-in severity. For
+    # example, if the severity level is INFO, the logger will handle
+    # only INFO, WARNING, ERROR, and CRITICAL messages and will ignore
+    # DEBUG messages.
+
 
 def die(errmsg):
     print errmsg
     sys.exit(1)
-
 
 
 description = r"""
@@ -52,7 +61,21 @@ LastPass does not. So this script adds all of the key value pairs into
 the extra field. Therefore, some manual adjustment will be required
 after conversion.
 """
-    
+
+def format_csv_field(value):
+    value.replace('"','""')
+    # Translate unicode single-quotes and other characters that cause python's print to croak with an error of the form:
+    #
+    #   UnicodeEncodeError: 'ascii' codec can't encode character u'\u2026' in position 272: ordinal not in range(128)
+    #
+    # This rips out the quotes completely which is not quite good enough:
+    #   value = value.encode('ascii', 'ignore')
+    value = value.replace(u"\u2019","'")
+    value = value.replace(u"\u2013","-")
+    value = value.replace(u"\u2026","...")
+    value = '"' + value + '"'
+    return value
+
 def main():
     # Parse command-line options:
     parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -74,46 +97,29 @@ def main():
     #
     # Puzzling:
     parser.add_argument("-injson", dest="injsonfile", required=True, help="Input Clipperz JSON file.")
-    parser.add_argument("-outcsv", dest="outcsv", required=True, help="Output LastPass CSV file.")
+    parser.add_argument("-outcsv", dest="outcsvfile", required=True, help="Output LastPass CSV file.")
+    parser.add_argument("-debug", dest="debug", help="Show debugging output.", action="store_true")
+
     args = parser.parse_args(sys.argv[1:])
 
     # Setup logging:
-    #logfile = os.path.join('/tmp',os.path.basename(sys.argv[0]) + ".log");
     logfile = '/dev/stdout'
-    setupLogging(logfile)
+    # setupLogging(logfile, logging.DEBUG)
+    level = logging.INFO
+    if args.debug:
+        level = logging.DEBUG
+    setupLogging(logfile, level)
     
-    logging.info("Start: " + os.path.basename(sys.argv[0]))
+    logging.debug("Start: " + os.path.basename(sys.argv[0]))
     
     # Process arguments:
     injsonfile = os.path.expanduser(args.injsonfile)
-    print 'injsonfile=="'+str(injsonfile)+'"'
-    outcsv = os.path.expanduser(args.outcsv)
-    print 'outcsv=="'+str(outcsv)+'"'
-
-    # print json.dumps(['foo', {'bar': ('baz', None, 1.0, 2)}])
-
-    # with open('test1.txt','w') as g:
-    #     print >> g, json.dumps(['foo', {'bar': ('baz', None, 1.0, 2)}])
-
-    # with open('test1.txt','r') as fp:
-    #     jsonobj = json.load(fp);
-    #     # json.dumps(jsonobj, sort_keys=True);
-
-    # print "bgdbg", jsonobj
-
-
-    # Example for csv output that shows how the notes could be formatted:
-    #
-    # url,username,password,extra,name,grouping,fav
-    # http://thesite1.com/,theusername1,thepassword1,"this is some notes for this entry
-    # This is another line of that entry",thename1,thefolder1,0
-    # http://sn,,,"This is a secure note 1 to be saved.
-    # This is another line in that note. a double quote here "" bla bla",secure note 1,,0
-    #
+    outcsvfile = os.path.expanduser(args.outcsvfile)
 
     # Regular expression to match field labels to the username field:
     username_re = re.compile(r'^Username or email$|^Username$')
 
+    entries = []
     entry = {}
     with open(injsonfile,'r') as fp:
         jsonobj = json.load(fp);
@@ -123,11 +129,11 @@ def main():
         for card in jsonobj:
 
             # Reset new entry:
-            entry.clear()
+            entry = {}
             entry['extra'] = ''
 
-            logging.info('--------------------------------------------------------------------------------')
-            logging.info('card: ' + json.dumps(card, sort_keys=True, indent=2))
+            logging.debug('--------------------------------------------------------------------------------')
+            logging.debug('card: ' + json.dumps(card, sort_keys=True, indent=2))
             entry['name'] = card['label']
 
             if 'data' in card:
@@ -165,32 +171,36 @@ def main():
                             # one password field per LastPass record:
                             entry['extra'] += "\n" + fieldlabel + ": " + value
                                 
-            logging.info('entry: ' + json.dumps(entry, sort_keys=True, indent=2))
-            logging.info('--------------------------------------------------------------------------------')
-    
-    # with open(injson,'r') as f:
-    # with open('test1.txt','w') as g: 
-    #     for x in f:
-    #         x = x.rstrip()
-    #         if not x: continue
-    #         print >> g, int(x, 16)
+            logging.debug('entry: ' + json.dumps(entry, sort_keys=True, indent=2))
+            logging.debug('--------------------------------------------------------------------------------')
+            entries.append(entry)
 
+    # Write the CSV file:
 
-    #     json.dumps(['foo', {'bar': ('baz', None, 1.0, 2)}])
-    # '["foo", {"bar": ["baz", null, 1.0, 2]}]'
-    # >>> print json.dumps("\"foo\bar")
-    # "\"foo\bar"
-    # >>> print json.dumps(u'\u1234')
-    # "\u1234"
-    # >>> print json.dumps('\\')
-    # "\\"
-    # >>> print json.dumps({"c": 0, "b": 0, "a": 0}, sort_keys=True)
-    # {"a": 0, "b": 0, "c": 0}
-    # >>> from StringIO import StringIO
-    # >>> io = StringIO()
-    # >>> json.dump(['streaming API'], io)
-    # >>> io.getvalue()
-    # '["streaming API"]'
+    # Example for csv output that shows how the notes could be formatted:
+    #
+    # url,username,password,extra,name,grouping,fav
+    # http://thesite1.com/,theusername1,thepassword1,"this is some notes for this entry
+    # This is another line of that entry",thename1,thefolder1,0
+    # http://sn,,,"This is a secure note 1 to be saved.
+    # This is another line in that note. a double quote here "" bla bla",secure note 1,,0
+    #
+    with open(outcsvfile,'w') as outcsvfp:
+        field_names = ['url','username','password','extra','name','grouping','fav']
+        print >> outcsvfp, ",".join(field_names)
+        for entry in entries:
+            output_list = []
+            for field_name in field_names:
+                if field_name not in entry:
+                    entry[field_name] = ''
+                output_list.append(field_name + ":" + format_csv_field(entry[field_name]))
+                # print 'field_name: ', field_name
+                # print 'field_value:', format_csv_field(entry[field_name])
+                # print >> outcsvfp, field_name
+                # print >> outcsvfp, format_csv_field(entry[field_name])
+            print >> outcsvfp, ",".join(output_list)
+            # print >> outcsvfp, json.dumps(output_list, sort_keys=True, indent=2)
+        # print >> outcsvfp, json.dumps(entries, sort_keys=True, indent=2)
 
 if __name__ == '__main__':
     main()
