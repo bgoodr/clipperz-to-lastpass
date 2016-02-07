@@ -63,7 +63,7 @@ after conversion.
 """
 
 def format_csv_field(value):
-    value.replace('"','""')
+    value = value.replace('"','""')
     # Translate unicode single-quotes and other characters that cause python's print to croak with an error of the form:
     #
     #   UnicodeEncodeError: 'ascii' codec can't encode character u'\u2026' in position 272: ordinal not in range(128)
@@ -177,23 +177,37 @@ def main():
 
     # Write the CSV file:
 
-    # Example for csv output that shows how the notes could be formatted:
+    # Example for csv output that shows how the csv file looks like
+    # when we exported a sample, but it doesn't match what the
+    # template is:
     #
     # url,username,password,extra,name,grouping,fav
     # http://thesite1.com/,theusername1,thepassword1,"this is some notes for this entry
     # This is another line of that entry",thename1,thefolder1,0
     # http://sn,,,"This is a secure note 1 to be saved.
     # This is another line in that note. a double quote here "" bla bla",secure note 1,,0
+
+    # Here is the template from
+    # https://helpdesk.lastpass.com/importing-from-other-password-managers/#Importing+from+a+Generic+CSV+File
+    # That does not explain what the "type" and "hostname" fields are
+    # for:
     #
+    # url,type,username,password,hostname,extra,name,grouping
+    # http://sn,server,server1username,server1password,server1hostname,,Server 1,Server Group A
+    # http://sn,,,,,Adt349fme,Guest wireless key,Sys Admins
+    # http://community.spiceworks.com/login,,sysadmins@acme.com,spiceworkspassword,,confidential,Spiceworks Admin Login,Sys Admins
+    #
+    # So just leave the type and hostname fields to be blank:
+    field_names = ['url','type','username','password','hostname','extra','name','grouping']
+
     with open(outcsvfile,'w') as outcsvfp:
-        field_names = ['url','username','password','extra','name','grouping','fav']
         print >> outcsvfp, ",".join(field_names)
         for entry in entries:
             output_list = []
             for field_name in field_names:
                 if field_name not in entry:
                     entry[field_name] = ''
-                output_list.append(field_name + ":" + format_csv_field(entry[field_name]))
+                output_list.append(format_csv_field(entry[field_name]))
                 # print 'field_name: ', field_name
                 # print 'field_value:', format_csv_field(entry[field_name])
                 # print >> outcsvfp, field_name
