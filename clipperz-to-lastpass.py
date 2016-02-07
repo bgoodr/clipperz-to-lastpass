@@ -35,13 +35,27 @@ def die(errmsg):
     print errmsg
     sys.exit(1)
 
-def blank_entry():
-    return {'url':'','username':'','password':'','extra':'','name':'','grouping':'','fav':''}
 
+
+description = r"""
+clipperz-to-lastpass.py -- Convert Clipperz JSON databases to LastPass CSV files
+
+Why: Unfortunately Clipperz changed their user interface to be much
+slower (apparently to accomodate Android apps) and users kept getting
+timeouts when saving to the Clipperz server. LastPass did not (at this
+point in time 2016-02-06) have any way to convert Clipperz JSON
+formatted files into its format (CSV). So, this script fills that need.
+
+Unfortunately, LastPass records are much more rigid than
+Clipperz. Clipperz allows you to keep arbitrary key/value pairs while
+LastPass does not. So this script adds all of the key value pairs into
+the extra field. Therefore, some manual adjustment will be required
+after conversion.
+"""
+    
 def main():
     # Parse command-line options:
-    parser = argparse.ArgumentParser(description='Converts Clipperz JSON databases to LastPass CSV files.')
-
+    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawDescriptionHelpFormatter)
 
     # This:
     #
@@ -98,7 +112,7 @@ def main():
     #
 
     # Regular expression to match field labels to the username field:
-    username_re = re.compile(r'^Username or email$\|^Username$')
+    username_re = re.compile(r'^Username or email$|^Username$')
 
     entry = {}
     with open(injsonfile,'r') as fp:
@@ -109,10 +123,11 @@ def main():
         for card in jsonobj:
 
             # Reset new entry:
-            entry = blank_entry()
+            entry.clear()
+            entry['extra'] = ''
 
-            print '--------------------------------------------------------------------------------'
-            print 'card:', json.dumps(card, sort_keys=True, indent=2)
+            logging.info('--------------------------------------------------------------------------------')
+            logging.info('card: ' + json.dumps(card, sort_keys=True, indent=2))
             entry['name'] = card['label']
 
             if 'data' in card:
@@ -130,35 +145,28 @@ def main():
                         value = field['value']
                         if not(fieldlabel == "" and value == ""):
                             if field['type'] == 'URL':
-                                if 'url' in entry:
-                                    # There is only one url entry per
-                                    # LastPass record, so preserve the
-                                    # subsequent URLs into the extra field:
-                                    entry['extra'] += "\n" + fieldlabel + ": " + value
-                                else:
+                                if 'url' not in entry:
                                     entry['url'] = value
                             elif field['type'] == 'PWD':
-                                if 'password' in entry:
-                                    # There is only one password entry
-                                    # per LastPass record, so preserve
-                                    # the subsequent passwords into
-                                    # the extra field:
-                                    entry['extra'] += "\n" + fieldlabel + ": " + value
-                                else:
+                                if 'password' not in entry:
                                     entry['password'] = value
                             elif field['type'] == 'TXT':
                                 if username_re.match(fieldlabel):
-                                    if username in entry:
-                                        # There is only one username entry
-                                        # per LastPass record, so preserve
-                                        # the subsequent usernames into
-                                        # the extra field:
-                                        entry['extra'] += "\n" + fieldlabel + ": " + value
-                                    else:
+                                    if 'username' not in entry:
                                         entry['username'] = value
+
+                            # No matter what, preserve all
+                            # fieldlabel/value combinations in the
+                            # extra field given the limitations of
+                            # LastPass where you cannot have multiple
+                            # key/value pairs as you can in
+                            # Clipperz. E.g., there can be multiple
+                            # PWD fields in a Clipperz card, but only
+                            # one password field per LastPass record:
+                            entry['extra'] += "\n" + fieldlabel + ": " + value
                                 
-            print 'entry:', json.dumps(entry, sort_keys=True, indent=2)
-            print '--------------------------------------------------------------------------------'
+            logging.info('entry: ' + json.dumps(entry, sort_keys=True, indent=2))
+            logging.info('--------------------------------------------------------------------------------')
     
     # with open(injson,'r') as f:
     # with open('test1.txt','w') as g: 
