@@ -104,7 +104,6 @@ def main():
 
     # Setup logging:
     logfile = '/dev/stdout'
-    # setupLogging(logfile, logging.DEBUG)
     level = logging.INFO
     if args.debug:
         level = logging.DEBUG
