@@ -1,2 +1,6 @@
-# clipperz-to-lastpass
-Convert Clipperz JSON databases to LastPass CSV files
+clipperz-to-lastpass
+====================
+
+This Python script converts Clipperz JSON files to LastPass CSV files.
+
+Execute with -h option to get usage.
