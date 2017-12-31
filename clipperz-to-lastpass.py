@@ -149,13 +149,13 @@ def main():
                         fieldlabel = field['label']
                         value = field['value']
                         if not(fieldlabel == "" and value == ""):
-                            if field['type'] == 'URL':
+                            if field['actionType'] == 'URL':
                                 if 'url' not in entry:
                                     entry['url'] = value
-                            elif field['type'] == 'PWD':
+                            elif field['actionType'] == 'PWD':
                                 if 'password' not in entry:
                                     entry['password'] = value
-                            elif field['type'] == 'TXT':
+                            elif field['actionType'] == 'TXT':
                                 if username_re.match(fieldlabel):
                                     if 'username' not in entry:
                                         entry['username'] = value
@@ -188,16 +188,16 @@ def main():
 
     # Here is the template from
     # https://helpdesk.lastpass.com/importing-from-other-password-managers/#Importing+from+a+Generic+CSV+File
-    # That does not explain what the "type" and "hostname" fields are
+    # That does not explain what the "actionType" and "hostname" fields are
     # for:
     #
-    # url,type,username,password,hostname,extra,name,grouping
+    # url,actionType,username,password,hostname,extra,name,grouping
     # http://sn,server,server1username,server1password,server1hostname,,Server 1,Server Group A
     # http://sn,,,,,Adt349fme,Guest wireless key,Sys Admins
     # http://community.spiceworks.com/login,,sysadmins@acme.com,spiceworkspassword,,confidential,Spiceworks Admin Login,Sys Admins
     #
-    # So just leave the type and hostname fields to be blank:
-    field_names = ['url','type','username','password','hostname','extra','name','grouping']
+    # So just leave the actionType and hostname fields to be blank:
+    field_names = ['url','actionType','username','password','hostname','extra','name','grouping']
 
     with open(outcsvfile,'w') as outcsvfp:
         print >> outcsvfp, ",".join(field_names)
@@ -211,10 +211,10 @@ def main():
                 # print 'field_value:', format_csv_field(entry[field_name])
                 # print >> outcsvfp, field_name
                 # print >> outcsvfp, format_csv_field(entry[field_name])
-            print >> outcsvfp, ",".join(output_list)
+            output = ",".join(output_list)
+            print >> outcsvfp, output.encode("UTF-8")
             # print >> outcsvfp, json.dumps(output_list, sort_keys=True, indent=2)
         # print >> outcsvfp, json.dumps(entries, sort_keys=True, indent=2)
 
 if __name__ == '__main__':
     main()
-
